@@ -1,0 +1,23 @@
+# Files containing sensitive credentials
+oanda.py
+telegram_bot.py
+
+# Pre-trained model file
+model.xgb
+
+# Log directory and files
+logs/
+logs/trade.log
+
+# Database file
+trades.db
+
+# Python cache and build files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/

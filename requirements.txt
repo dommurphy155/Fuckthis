@@ -1,0 +1,6 @@
+oandapyV20==0.7.2
+python-telegram-bot==20.0
+xgboost==2.0.3
+numpy==1.26.4
+talib-binary==0.4.19
+pytz==2024.1
