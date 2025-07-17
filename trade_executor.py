@@ -75,7 +75,7 @@ async def execute_trade(signal: dict, account_summary: dict, state: dict) -> str
 
 # ✅ New for Telegram bot: safe one-off manual trade trigger
 async def execute_single_trade(signal: dict) -> str:
-    state = load_state()
+    state = await load_state()
     account_summary = await get_account_summary()
     return await execute_trade(signal, account_summary, state)
  

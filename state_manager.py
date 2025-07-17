@@ -118,4 +118,41 @@ def reset_daily_counters(state: Dict[str, Any]) -> Dict[str, Any]:
         state['daily_loss'] = 0.0
     # Add more daily counters as needed
     return state
+
+# Standalone async state helpers for use in other modules
+_state_manager_instance = None
+
+def _get_state_manager():
+    global _state_manager_instance
+    if _state_manager_instance is None:
+        _state_manager_instance = StateManager()
+        _state_manager_instance.load_state()
+    return _state_manager_instance
+
+async def record_open_trade(trade_id, instrument, direction, size, atr):
+    sm = _get_state_manager()
+    open_trades = sm.get('open_trades', [])
+    open_trades.append({
+        'trade_id': trade_id,
+        'instrument': instrument,
+        'direction': direction,
+        'size': size,
+        'atr': atr,
+        'opened_at': datetime.utcnow().isoformat()
+    })
+    sm.set('open_trades', open_trades)
+    sm.save()
+
+async def get_state():
+    sm = _get_state_manager()
+    return sm.get_all()
+
+async def get_account_summary():
+    from oanda_client import get_account_summary as oanda_get_account_summary
+    return await oanda_get_account_summary()
+
+async def load_state():
+    sm = _get_state_manager()
+    sm.load_state()
+    return sm.get_all()
  

@@ -1,15 +1,34 @@
+import asyncio
+import os
+import logging
+from typing import Any, Dict, List, Optional
+from functools import wraps
 import oandapyV20
 import oandapyV20.endpoints.accounts as accounts
 import oandapyV20.endpoints.orders as orders
 import oandapyV20.endpoints.positions as positions
 import oandapyV20.endpoints.trades as trades
-import logging
-from typing import Any, Dict, List, Optional
+
+def retry_async(retries=5, delay=2):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            for attempt in range(retries):
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    logging.error(f"Retry {attempt+1}/{retries} for {func.__name__}: {e}")
+                    await asyncio.sleep(delay)
+            raise Exception(f"Failed after {retries} retries: {func.__name__}")
+        return wrapper
+    return decorator
 
 class OandaClient:
-    def __init__(self, access_token: str = "", account_id: str = "", environment: str = "practice"):
-        self.client = oandapyV20.API(access_token=access_token, environment=environment)
-        self.account_id = account_id
+    def __init__(self, access_token: str = None, account_id: str = None, environment: str = None):
+        self.access_token = access_token or os.environ.get("OANDA_API_KEY")
+        self.account_id = account_id or os.environ.get("OANDA_ACCOUNT_ID")
+        self.environment = environment or os.environ.get("OANDA_ENV", "practice")
+        self.client = oandapyV20.API(access_token=self.access_token, environment=self.environment)
 
     def get_account_summary(self) -> Optional[Dict[str, Any]]:
         try:
@@ -74,4 +93,23 @@ class OandaClient:
         except Exception as e:
             logging.error(f"Error closing trade {trade_id}: {e}")
             return None
+
+# Standalone async wrappers for use in other modules
+@retry_async()
+async def get_open_positions():
+    loop = asyncio.get_event_loop()
+    client = OandaClient()
+    return await loop.run_in_executor(None, client.get_open_positions)
+
+@retry_async()
+async def get_account_summary():
+    loop = asyncio.get_event_loop()
+    client = OandaClient()
+    return await loop.run_in_executor(None, client.get_account_summary)
+
+@retry_async()
+async def close_trade_by_id(trade_id: str):
+    loop = asyncio.get_event_loop()
+    client = OandaClient()
+    return await loop.run_in_executor(None, client.close_trade, trade_id)
  
