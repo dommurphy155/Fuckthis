@@ -1,16 +1,14 @@
 import asyncio
 import numpy as np
+import pandas as pd
 from datetime import datetime, timedelta
 import pytz
 
-# Import ta indicators directly
 from ta.momentum import RSIIndicator, StochRSIIndicator, ROCIndicator
 from ta.trend import MACD, ADXIndicator, EMAIndicator
 from ta.volatility import AverageTrueRange, BollingerBands, KeltnerChannel
 from ta.volume import OnBalanceVolumeIndicator
-from ta.patterns import (  # Not all patterns in ta, so this might be limited
-    # Patterns would require custom implementation if needed
-)
+
 
 class TradingEngine:
     """Manages trading logic, signal generation, and trade monitoring."""
@@ -44,42 +42,23 @@ class TradingEngine:
         lows = np.array([float(c['low']) for c in candles])
         volumes = np.array([float(c['volume']) for c in candles])
 
-        # RSI
         rsi = RSIIndicator(pd.Series(closes), window=14).rsi().iloc[-1]
-
-        # MACD Histogram
         macd = MACD(pd.Series(closes))
         hist = macd.macd_diff().iloc[-1]
-
-        # ADX
         adx = ADXIndicator(pd.Series(highs), pd.Series(lows), pd.Series(closes), window=14).adx().iloc[-1]
-
-        # ATR
         atr = AverageTrueRange(pd.Series(highs), pd.Series(lows), pd.Series(closes), window=14).average_true_range().iloc[-1]
-
-        # Bollinger Bands and %b
         bb = BollingerBands(pd.Series(closes), window=20)
         upper = bb.bollinger_hband().iloc[-1]
         middle = bb.bollinger_mavg().iloc[-1]
         lower = bb.bollinger_lband().iloc[-1]
-        percent_b = (closes[-1] - lower) / (upper - lower)
-        bb_width = (upper - lower) / middle
-
-        # SAR — ta doesn't have SAR, fallback to 0 or implement later
-        sar = 0
-
-        # OBV
+        percent_b = (closes[-1] - lower) / (upper - lower) if (upper - lower) != 0 else 0
+        bb_width = (upper - lower) / middle if middle != 0 else 0
+        sar = 0  # placeholder, ta lib lacks SAR
         obv = OnBalanceVolumeIndicator(pd.Series(closes), pd.Series(volumes)).on_balance_volume().iloc[-1]
-
-        # EMA 20
         ema = EMAIndicator(pd.Series(closes), window=20).ema_indicator().iloc[-1]
-
-        # Keltner Channel upper and lower
         kc = KeltnerChannel(pd.Series(highs), pd.Series(lows), pd.Series(closes), window=20)
         keltner_upper = kc.keltner_channel_hband().iloc[-1]
         keltner_lower = kc.keltner_channel_lband().iloc[-1]
-
-        # Donchian Channel high and low — not in ta, approximate with rolling max/min
         donchian_high = pd.Series(highs).rolling(window=20).max().iloc[-1]
         donchian_low = pd.Series(lows).rolling(window=20).min().iloc[-1]
 
@@ -175,3 +154,7 @@ class TradingEngine:
             if confidence > best_confidence and confidence > 0.75:
                 best_pair, best_confidence, best_direction = pair, confidence, direction
         if best_pair:
+            await self.place_trade(best_pair, best_direction, best_confidence)
+            return f"Manual trade placed: {best_pair} {best_direction} with confidence {best_confidence:.2f}"
+        else:
+            return "No suitable trade found or max trades reached for today."
