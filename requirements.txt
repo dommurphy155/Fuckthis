@@ -2,5 +2,6 @@ oandapyV20==0.7.2
 python-telegram-bot==20.0
 xgboost==2.0.3
 numpy==1.26.4
+pandas==2.0.3
 ta==0.11.2
 pytz==2024.1
