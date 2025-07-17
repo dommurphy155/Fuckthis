@@ -1,8 +1,16 @@
 import asyncio
-import talib
 import numpy as np
 from datetime import datetime, timedelta
 import pytz
+
+# Import ta indicators directly
+from ta.momentum import RSIIndicator, StochRSIIndicator, ROCIndicator
+from ta.trend import MACD, ADXIndicator, EMAIndicator
+from ta.volatility import AverageTrueRange, BollingerBands, KeltnerChannel
+from ta.volume import OnBalanceVolumeIndicator
+from ta.patterns import (  # Not all patterns in ta, so this might be limited
+    # Patterns would require custom implementation if needed
+)
 
 class TradingEngine:
     """Manages trading logic, signal generation, and trade monitoring."""
@@ -35,22 +43,48 @@ class TradingEngine:
         highs = np.array([float(c['high']) for c in candles])
         lows = np.array([float(c['low']) for c in candles])
         volumes = np.array([float(c['volume']) for c in candles])
-        rsi = talib.RSI(closes, timeperiod=14)[-1]
-        macd, signal, hist = talib.MACD(closes)
-        adx = talib.ADX(highs, lows, closes, timeperiod=14)[-1]
-        atr = talib.ATR(highs, lows, closes, timeperiod=14)[-1]
-        upper, middle, lower = talib.BBANDS(closes, timeperiod=20)
-        percent_b = (closes[-1] - lower[-1]) / (upper[-1] - lower[-1])
-        bb_width = (upper[-1] - lower[-1]) / middle[-1]
-        sar = talib.SAR(highs, lows)[-1]
-        obv = talib.OBV(closes, volumes)[-1]
-        ema = talib.EMA(closes, timeperiod=20)[-1]
-        keltner_upper = ema + 2 * atr
-        keltner_lower = ema - 2 * atr
-        donchian_high = talib.MAX(highs, timeperiod=20)[-1]
-        donchian_low = talib.MIN(lows, timeperiod=20)[-1]
+
+        # RSI
+        rsi = RSIIndicator(pd.Series(closes), window=14).rsi().iloc[-1]
+
+        # MACD Histogram
+        macd = MACD(pd.Series(closes))
+        hist = macd.macd_diff().iloc[-1]
+
+        # ADX
+        adx = ADXIndicator(pd.Series(highs), pd.Series(lows), pd.Series(closes), window=14).adx().iloc[-1]
+
+        # ATR
+        atr = AverageTrueRange(pd.Series(highs), pd.Series(lows), pd.Series(closes), window=14).average_true_range().iloc[-1]
+
+        # Bollinger Bands and %b
+        bb = BollingerBands(pd.Series(closes), window=20)
+        upper = bb.bollinger_hband().iloc[-1]
+        middle = bb.bollinger_mavg().iloc[-1]
+        lower = bb.bollinger_lband().iloc[-1]
+        percent_b = (closes[-1] - lower) / (upper - lower)
+        bb_width = (upper - lower) / middle
+
+        # SAR — ta doesn't have SAR, fallback to 0 or implement later
+        sar = 0
+
+        # OBV
+        obv = OnBalanceVolumeIndicator(pd.Series(closes), pd.Series(volumes)).on_balance_volume().iloc[-1]
+
+        # EMA 20
+        ema = EMAIndicator(pd.Series(closes), window=20).ema_indicator().iloc[-1]
+
+        # Keltner Channel upper and lower
+        kc = KeltnerChannel(pd.Series(highs), pd.Series(lows), pd.Series(closes), window=20)
+        keltner_upper = kc.keltner_channel_hband().iloc[-1]
+        keltner_lower = kc.keltner_channel_lband().iloc[-1]
+
+        # Donchian Channel high and low — not in ta, approximate with rolling max/min
+        donchian_high = pd.Series(highs).rolling(window=20).max().iloc[-1]
+        donchian_low = pd.Series(lows).rolling(window=20).min().iloc[-1]
+
         return [
-            rsi, hist[-1], adx, atr, percent_b, bb_width, sar, obv,
+            rsi, hist, adx, atr, percent_b, bb_width, sar, obv,
             keltner_upper - keltner_lower, donchian_high - donchian_low
         ]
 
@@ -72,12 +106,10 @@ class TradingEngine:
         bid, ask = self.oanda.get_current_price(pair)
         entry_price = ask if direction == 'long' else bid
         candles = self.oanda.get_candle_data(pair, 50, 'M15')
-        atr = talib.ATR(
-            np.array([float(c['high']) for c in candles]),
-            np.array([float(c['low']) for c in candles]),
-            np.array([float(c['close']) for c in candles]),
-            timeperiod=14
-        )[-1]
+        highs = np.array([float(c['high']) for c in candles])
+        lows = np.array([float(c['low']) for c in candles])
+        closes = np.array([float(c['close']) for c in candles])
+        atr = AverageTrueRange(pd.Series(highs), pd.Series(lows), pd.Series(closes), window=14).average_true_range().iloc[-1]
         sl_pips = atr * 2
         tp_pips = sl_pips * 1.5
         sl = entry_price - sl_pips if direction == 'long' else entry_price + sl_pips
@@ -143,36 +175,3 @@ class TradingEngine:
             if confidence > best_confidence and confidence > 0.75:
                 best_pair, best_confidence, best_direction = pair, confidence, direction
         if best_pair:
-            await self.place_trade(best_pair, best_direction, best_confidence)
-            usd_gbp = await self.get_usd_gbp_rate()
-            expected_profit = self.db.get_expected_profit(self.oanda.get_open_trades()[-1]['trade_id'])
-            return (
-                f"Trade placed: {best_pair}\n"
-                f"Confidence: {best_confidence:.2f}\n"
-                f"Direction: {best_direction}\n"
-                f"Expected Profit: £{expected_profit:.2f}"
-            )
-        return "No trade opportunities with confidence > 0.75."
-
-    async def get_daily_summary(self):
-        """Get today's P/L and trade details."""
-        today = datetime.now(pytz.utc).date()
-        trades = self.db.get_trades_by_date(today)
-        today_pl = sum(t['pl'] for t in trades if t['status'] == 'closed')
-        open_trades = [t for t in self.oanda.get_open_trades()]
-        closed_trades = [t for t in trades if t['status'] == 'closed']
-        return today_pl, open_trades, closed_trades
-
-    async def get_weekly_summary(self):
-        """Get this week's P/L and trade count."""
-        now = datetime.now(pytz.utc)
-        week_start = now - timedelta(days=now.weekday())
-        trades = self.db.get_trades_by_period(week_start, now)
-        weekly_pl = sum(t['pl'] for t in trades if t['status'] == 'closed')
-        trade_count = len(trades)
-        return weekly_pl, trade_count
-
-    def reset_daily_counters(self):
-        """Reset daily trade counters."""
-        self.daily_trades = {pair: 0 for pair in self.pairs}
- 
