@@ -14,6 +14,16 @@ MIN_TIME_BETWEEN_TRADES_SEC = 6
 trade_locks = {}
 
 async def can_trade(instrument: str, state: dict) -> (bool, str):
+    """Determine if a trade can be executed for a given instrument based on trade limits and cooldown periods.
+    Parameters:
+        - instrument (str): The trading instrument identifier.
+        - state (dict): Contains information about open trades, daily trade counts, and last trade times.
+    Returns:
+        - (bool, str): A tuple where the first element is a boolean indicating if the trade can occur, and the second element is a message explaining the decision.
+    Processing Logic:
+        - Checks if the number of open trades has reached the maximum global limit.
+        - Verifies if the daily trade limit for the specified instrument has been reached.
+        - Ensures the cooldown period between trades for the instrument has passed."""
     if len(state.get("open_trades", [])) >= MAX_GLOBAL_TRADES:
         return False, "Max global trades reached."
 
@@ -27,6 +37,18 @@ async def can_trade(instrument: str, state: dict) -> (bool, str):
     return True, ""
 
 async def execute_trade(signal: dict, account_summary: dict, state: dict) -> str:
+    """Execute a trade based on the given trading signal.
+    Parameters:
+        - signal (dict): Contains details of the trading signal, including 'instrument' and 'direction'.
+        - account_summary (dict): Summary of the account used to calculate position size.
+        - state (dict): Current state information used to check for duplicate signals and trading eligibility.
+    Returns:
+        - str: Message indicating the result of the trade execution or reason for any failure.
+    Processing Logic:
+        - Checks if the spread is higher than allowed and returns a message if it is.
+        - Verifies trading eligibility and checks if a trade is already in progress.
+        - Calculates position size and places an order through OandaClient.
+        - Returns specific error messages for failed order or duplicate signal detection."""
     instrument = signal["instrument"]
     direction = signal["direction"]
     spread = await get_current_spread(instrument)

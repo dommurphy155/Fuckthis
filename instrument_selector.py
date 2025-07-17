@@ -14,6 +14,12 @@ LOW_LIQUIDITY_HOURS = {
 }
 
 def is_active_session_now() -> bool:
+    """Determine if the current UTC time falls within any active session period.
+    Returns:
+        - bool: True if the current UTC time is within any predefined active session period, otherwise False.
+    Processing Logic:
+        - Retrieves the current UTC time and extracts the hour component.
+        - Checks if the hour falls within one of the specified active session intervals."""
     utc_now = datetime.utcnow().replace(tzinfo=pytz.utc)
     hour = utc_now.hour
     return (

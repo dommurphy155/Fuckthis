@@ -19,6 +19,15 @@ LOG_FILE_PERMISSION = 0o600
 
 
 def setup_logger(name: str):
+    """Sets up a logger with both file and console handlers for debugging and informational messages.
+    Parameters:
+        - name (str): The name assigned to the logger, used for log file naming.
+    Returns:
+        - logging.Logger: Configured logger instance capable of writing logs to a file and outputting to console.
+    Processing Logic:
+        - Uses `logging.DEBUG` level for file logs and `logging.INFO` level for console logs.
+        - File logs are saved in a predetermined directory with standardized formatting and permissions.
+        - Configures log message format to include timestamps, log level, and message content."""
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 

@@ -18,6 +18,16 @@ def get_last_signal_breakdown(*args: Any, **kwargs: Any) -> str:
     return "No breakdown available."
 
 async def trading_loop():
+    """Executes an asynchronous trading loop that resets daily counters, selects trading instruments, generates signals, and executes trades.
+    Parameters:
+        None
+    Returns:
+        None
+    Processing Logic:
+        - Resets daily trading counters if the current day differs from the last recorded day.
+        - Manages state persistence through 'StateManager'.
+        - Executes trades based on signals and updates listeners with the trade results.
+        - Handles exceptions by logging errors."""
     state_manager = StateManager()
     state_manager.load_state()
     last_reset_day = datetime.utcnow().day

@@ -22,6 +22,16 @@ def handle_shutdown(signame):
     shutdown_event.set()
 
 async def main():
+    """Initialize and start a Telegram bot, handling shutdown events.
+    Parameters:
+        None
+    Returns:
+        None
+    Processing Logic:
+        - Initializes and starts the Telegram bot application.
+        - Begins polling for updates to keep the bot active.
+        - Handles exceptions during runtime and logs errors.
+        - Ensures clean shutdown of bot resources when a shutdown event occurs."""
     try:
         bot = TelegramBot()
         await bot.app.initialize()
