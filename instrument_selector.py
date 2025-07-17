@@ -5,7 +5,7 @@ from datetime import datetime
 import pytz
 
 CURRENCY_PAIRS = [
-    "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CHF"
+    "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "USD_CAD"
 ]
 
 LOW_LIQUIDITY_HOURS = {
@@ -27,5 +27,5 @@ def is_low_liquidity_period() -> bool:
     return LOW_LIQUIDITY_HOURS["start"] <= hour <= LOW_LIQUIDITY_HOURS["end"]
 
 async def select_instruments() -> List[str]:
-    # Stub: Replace with real instrument selection logic
+    # Only return the required trading pairs
     return CURRENCY_PAIRS

@@ -1,13 +1,16 @@
-from typing import Any
+import hashlib
+import random
 
-async def get_current_spread(*args: Any, **kwargs: Any) -> float:
-    # Stub: Replace with real spread fetching logic
-    return 0.5
+async def get_current_spread(instrument, *args, **kwargs):
+    # Simulate fetching spread from broker or market data
+    # In production, replace with real API call
+    return round(random.uniform(0.2, 2.5), 2)
 
-async def get_atr_value(*args: Any, **kwargs: Any) -> float:
-    # Stub: Replace with real ATR fetching logic
-    return 1.0
+async def get_atr_value(instrument, *args, **kwargs):
+    # Simulate ATR value; in production, fetch from historical data
+    return round(random.uniform(10, 50), 2)
 
-def get_signal_hash(*args: Any, **kwargs: Any) -> str:
-    # Stub: Replace with real signal hash logic
-    return "dummy_hash"
+def get_signal_hash(signal, *args, **kwargs):
+    # Create a unique hash for a signal dict
+    s = str(sorted(signal.items()))
+    return hashlib.sha256(s.encode()).hexdigest()
